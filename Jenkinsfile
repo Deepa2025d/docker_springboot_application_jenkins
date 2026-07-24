@@ -3,9 +3,7 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id-')
-        IMAGE_NAME   = "deepaselvakumar/springboot-app"
-        SERVER_IP    = "13.233.157.6"
-        SSH_USER     = "ubuntu"
+        IMAGE_NAME = "deepaselvakumar/springboot-app"
     }
 
     stages {
@@ -35,31 +33,11 @@ pipeline {
                 }
             }
         }
-
-        stage('Deploy to Server') {
-            steps {
-                echo 'Deploying Docker image to target server...'
-                withCredentials([sshUserPrivateKey(
-                    credentialsId: 'deploy-server-ssh-key',
-                    keyFileVariable: 'SSH_KEY',
-                    usernameVariable: 'SSH_USER_CRED'
-                )]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ${SSH_USER}@${SERVER_IP} '
-                            docker pull ${IMAGE_NAME}:${BUILD_NUMBER} &&
-                            docker stop springboot-app || true &&
-                            docker rm springboot-app || true &&
-                            docker run -d --name springboot-app -p 8080:8080 ${IMAGE_NAME}:${BUILD_NUMBER}
-                        '
-                    """
-                }
-            }
-        }
     }
 
     post {
         success {
-            echo 'Pipeline completed successfully!'
+            echo 'Pipeline completed successfully! Watchtower will auto-deploy the latest image on the app server.'
         }
         failure {
             echo 'Pipeline failed. Please check logs.'
