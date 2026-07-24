@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id-')
         IMAGE_NAME   = "deepaselvakumar/springboot-app"
-        SERVER_IP    = "your.server.ip.here"
+        SERVER_IP    = "13.233.157.6"
         SSH_USER     = "ubuntu"
     }
 
