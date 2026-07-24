@@ -1,0 +1,100 @@
+pipeline {
+
+    agent any
+
+    parameters {
+
+        choice(
+            name: 'ACTION',
+            choices: [
+                'DEPLOY_APP',
+                'DEPLOY_DB',
+                'REMOVE_APP',
+                'REMOVE_DB'
+            ],
+            description: 'Select Kubernetes Operation'
+        )
+
+    }
+
+    stages {
+
+        stage('Deploy Application') {
+
+            when {
+                expression {
+                    params.ACTION == 'DEPLOY_APP'
+                }
+            }
+
+            steps {
+
+                sh '''
+                kubectl apply -f app-deployment.yml
+                kubectl apply -f app-service.yml
+                '''
+
+            }
+
+        }
+
+        stage('Deploy Database') {
+
+            when {
+                expression {
+                    params.ACTION == 'DEPLOY_DB'
+                }
+            }
+
+            steps {
+
+                sh '''
+                kubectl apply -f db-service.yml
+                kubectl apply -f db-statefulset.yml
+                '''
+
+            }
+
+        }
+
+        stage('Remove Application') {
+
+            when {
+                expression {
+                    params.ACTION == 'REMOVE_APP'
+                }
+            }
+
+            steps {
+
+                sh '''
+                kubectl delete -f app-service.yml --ignore-not-found
+                kubectl delete -f app-deployment.yml --ignore-not-found
+                '''
+
+            }
+
+        }
+
+        stage('Remove Database') {
+
+            when {
+                expression {
+                    params.ACTION == 'REMOVE_DB'
+                }
+            }
+
+            steps {
+
+                sh '''
+                kubectl delete -f db-statefulset.yml --ignore-not-found
+                kubectl delete -f db-service.yml --ignore-not-found
+                '''
+
+            }
+
+        }
+
+    }
+
+}
