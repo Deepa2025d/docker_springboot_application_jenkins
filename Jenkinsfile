@@ -9,7 +9,7 @@ pipeline {
     stages {
         stage('Docker Build') {
             steps {
-                echo 'Building Docker image with Maven inside container...'
+                echo 'Building Docker image (Maven runs inside container)...'
                 sh "docker build -t $IMAGE_NAME:${BUILD_NUMBER} ."
             }
         }
