@@ -15,13 +15,19 @@ pipeline {
         )
     }
 
+    environment {
+        KUBECONFIG_CRED = credentials('k8s-kubeconfig')
+    }
+
     stages {
 
         stage('Check Kubernetes') {
             steps {
-                sh '''
-                kubectl get nodes
-                '''
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl get nodes
+                    '''
+                }
             }
         }
 
@@ -32,10 +38,12 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                kubectl apply -f /root/app.yml
-                kubectl get all -n prod
-                '''
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl apply -f /root/app.yml
+                        kubectl get all -n prod
+                    '''
+                }
             }
         }
 
@@ -46,11 +54,13 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                kubectl apply -f /root/app.yml
-                kubectl get statefulset -n prod
-                kubectl get svc -n prod
-                '''
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl apply -f /root/app.yml
+                        kubectl get statefulset -n prod
+                        kubectl get svc -n prod
+                    '''
+                }
             }
         }
 
@@ -61,10 +71,12 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                kubectl delete deployment webapp -n prod --ignore-not-found
-                kubectl delete service webapp-service -n prod --ignore-not-found
-                '''
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl delete deployment webapp -n prod --ignore-not-found
+                        kubectl delete service webapp-service -n prod --ignore-not-found
+                    '''
+                }
             }
         }
 
@@ -75,17 +87,21 @@ pipeline {
                 }
             }
             steps {
-                sh '''
-                kubectl delete statefulset mysql -n prod --ignore-not-found
-                kubectl delete service mysql-service -n prod --ignore-not-found
-                '''
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl delete statefulset mysql -n prod --ignore-not-found
+                        kubectl delete service mysql-service -n prod --ignore-not-found
+                    '''
+                }
             }
         }
     }
 
     post {
         always {
-            sh 'kubectl get all -n prod || true'
+            withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                sh 'kubectl get all -n prod || true'
+            }
             cleanWs()
         }
 
