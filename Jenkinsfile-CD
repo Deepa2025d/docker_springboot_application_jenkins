@@ -17,31 +17,23 @@ pipeline {
 
     stages {
 
-        stage('Git Checkout') {
-            steps {
-                checkout scm
-            }
-        }
-
-        stage('Check Workspace') {
+        stage('Check Kubernetes') {
             steps {
                 sh '''
-                echo "Current Directory:"
-                pwd
-
-                echo "Workspace Files:"
-                ls -la
+                kubectl get nodes
                 '''
             }
         }
 
         stage('Deploy Application') {
             when {
-                expression { params.ACTION == 'DEPLOY_APP' }
+                expression {
+                    params.ACTION == 'DEPLOY_APP'
+                }
             }
             steps {
                 sh '''
-                kubectl apply -f app.yml
+                kubectl apply -f /root/app.yml
                 kubectl get all -n prod
                 '''
             }
@@ -49,11 +41,13 @@ pipeline {
 
         stage('Deploy Database') {
             when {
-                expression { params.ACTION == 'DEPLOY_DB' }
+                expression {
+                    params.ACTION == 'DEPLOY_DB'
+                }
             }
             steps {
                 sh '''
-                kubectl apply -f app.yml
+                kubectl apply -f /root/app.yml
                 kubectl get statefulset -n prod
                 kubectl get svc -n prod
                 '''
@@ -62,7 +56,9 @@ pipeline {
 
         stage('Remove Application') {
             when {
-                expression { params.ACTION == 'REMOVE_APP' }
+                expression {
+                    params.ACTION == 'REMOVE_APP'
+                }
             }
             steps {
                 sh '''
@@ -74,7 +70,9 @@ pipeline {
 
         stage('Remove Database') {
             when {
-                expression { params.ACTION == 'REMOVE_DB' }
+                expression {
+                    params.ACTION == 'REMOVE_DB'
+                }
             }
             steps {
                 sh '''
@@ -86,16 +84,17 @@ pipeline {
     }
 
     post {
+        always {
+            sh 'kubectl get all -n prod || true'
+            cleanWs()
+        }
+
         success {
-            echo "Pipeline completed successfully."
+            echo 'Deployment completed successfully.'
         }
 
         failure {
-            echo "Pipeline failed."
-        }
-
-        always {
-            cleanWs()
+            echo 'Pipeline execution failed.'
         }
     }
 }
