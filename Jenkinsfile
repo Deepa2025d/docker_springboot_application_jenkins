@@ -2,7 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id')   // make sure this ID matches Jenkins credentials
+        // Make sure this ID matches the credential you created in Jenkins
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id')
         IMAGE_NAME = "deepaselvakumar/springboot-app"
     }
 
@@ -17,10 +18,13 @@ pipeline {
         stage('Docker Login & Push') {
             steps {
                 echo 'Logging in to Docker Hub...'
-                sh "echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin"
-                sh "docker push $IMAGE_NAME:${BUILD_NUMBER}"
-                sh "docker tag $IMAGE_NAME:${BUILD_NUMBER} $IMAGE_NAME:latest"
-                sh "docker push $IMAGE_NAME:latest"
+                // Use credentials securely
+                sh """
+                    echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
+                    docker push $IMAGE_NAME:${BUILD_NUMBER}
+                    docker tag $IMAGE_NAME:${BUILD_NUMBER} $IMAGE_NAME:latest
+                    docker push $IMAGE_NAME:latest
+                """
             }
         }
 
@@ -28,7 +32,14 @@ pipeline {
             steps {
                 echo 'Deploying Docker image to target server...'
                 // Replace <server-ip> and <ssh-user> with your actual values
-                sh "ssh ubuntu@<server-ip> 'docker pull $IMAGE_NAME:${BUILD_NUMBER} && docker run -d -p 8080:8080 $IMAGE_NAME:${BUILD_NUMBER}'"
+                sh """
+                    ssh ubuntu@<server-ip> '
+                        docker pull $IMAGE_NAME:${BUILD_NUMBER} &&
+                        docker stop springboot-app || true &&
+                        docker rm springboot-app || true &&
+                        docker run -d --name springboot-app -p 8080:8080 $IMAGE_NAME:${BUILD_NUMBER}
+                    '
+                """
             }
         }
     }
