@@ -2,42 +2,49 @@ pipeline {
     agent any
 
     environment {
-        // Make sure this ID matches the credential you created in Jenkins
         DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id')
-        IMAGE_NAME = "deepaselvakumar/springboot-app"
+        IMAGE_NAME   = "deepaselvakumar/springboot-app"
+        SERVER_IP    = "your.server.ip.here"
+        SSH_USER     = "ubuntu"
     }
 
     stages {
         stage('Docker Build') {
             steps {
-                echo 'Building Docker image (Maven runs inside container)...'
-                sh "docker build -t $IMAGE_NAME:${BUILD_NUMBER} ."
+                echo 'Building Docker image...'
+                sh "docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} ."
+                sh "docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest"
             }
         }
 
         stage('Docker Login & Push') {
             steps {
                 echo 'Logging in to Docker Hub...'
-                // Use credentials securely
+                sh '''
+                    echo "$DOCKERHUB_CREDENTIALS_PSW" | docker login -u "$DOCKERHUB_CREDENTIALS_USR" --password-stdin
+                '''
+                echo 'Pushing images...'
                 sh """
-                    echo $DOCKERHUB_CREDENTIALS_PSW | docker login -u $DOCKERHUB_CREDENTIALS_USR --password-stdin
-                    docker push $IMAGE_NAME:${BUILD_NUMBER}
-                    docker tag $IMAGE_NAME:${BUILD_NUMBER} $IMAGE_NAME:latest
-                    docker push $IMAGE_NAME:latest
+                    docker push ${IMAGE_NAME}:${BUILD_NUMBER}
+                    docker push ${IMAGE_NAME}:latest
                 """
+            }
+            post {
+                always {
+                    sh 'docker logout || true'
+                }
             }
         }
 
         stage('Deploy to Server') {
             steps {
                 echo 'Deploying Docker image to target server...'
-                // Replace <server-ip> and <ssh-user> with your actual values
                 sh """
-                    ssh ubuntu@<server-ip> '
-                        docker pull $IMAGE_NAME:${BUILD_NUMBER} &&
+                    ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SERVER_IP} '
+                        docker pull ${IMAGE_NAME}:${BUILD_NUMBER} &&
                         docker stop springboot-app || true &&
                         docker rm springboot-app || true &&
-                        docker run -d --name springboot-app -p 8080:8080 $IMAGE_NAME:${BUILD_NUMBER}
+                        docker run -d --name springboot-app -p 8080:8080 ${IMAGE_NAME}:${BUILD_NUMBER}
                     '
                 """
             }
