@@ -39,9 +39,13 @@ pipeline {
         stage('Deploy to Server') {
             steps {
                 echo 'Deploying Docker image to target server...'
-                sshagent(credentials: ['deploy-server-ssh-key']) {
+                withCredentials([sshUserPrivateKey(
+                    credentialsId: 'deploy-server-ssh-key',
+                    keyFileVariable: 'SSH_KEY',
+                    usernameVariable: 'SSH_USER_CRED'
+                )]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no ${SSH_USER}@${SERVER_IP} '
+                        ssh -o StrictHostKeyChecking=no -i \$SSH_KEY ${SSH_USER}@${SERVER_IP} '
                             docker pull ${IMAGE_NAME}:${BUILD_NUMBER} &&
                             docker stop springboot-app || true &&
                             docker rm springboot-app || true &&
