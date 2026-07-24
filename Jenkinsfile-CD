@@ -3,7 +3,6 @@ pipeline {
     agent any
 
     parameters {
-
         choice(
             name: 'ACTION',
             choices: [
@@ -14,87 +13,89 @@ pipeline {
             ],
             description: 'Select Kubernetes Operation'
         )
-
     }
 
     stages {
 
-        stage('Deploy Application') {
-
-            when {
-                expression {
-                    params.ACTION == 'DEPLOY_APP'
-                }
-            }
-
+        stage('Git Checkout') {
             steps {
-
-                sh '''
-                kubectl apply -f app-deployment.yml
-                kubectl apply -f app-service.yml
-                '''
-
+                checkout scm
             }
+        }
 
+        stage('Check Workspace') {
+            steps {
+                sh '''
+                echo "Current Directory:"
+                pwd
+
+                echo "Workspace Files:"
+                ls -la
+                '''
+            }
+        }
+
+        stage('Deploy Application') {
+            when {
+                expression { params.ACTION == 'DEPLOY_APP' }
+            }
+            steps {
+                sh '''
+                kubectl apply -f app.yml
+                kubectl get all -n prod
+                '''
+            }
         }
 
         stage('Deploy Database') {
-
             when {
-                expression {
-                    params.ACTION == 'DEPLOY_DB'
-                }
+                expression { params.ACTION == 'DEPLOY_DB' }
             }
-
             steps {
-
                 sh '''
-                kubectl apply -f db-service.yml
-                kubectl apply -f db-statefulset.yml
+                kubectl apply -f app.yml
+                kubectl get statefulset -n prod
+                kubectl get svc -n prod
                 '''
-
             }
-
         }
 
         stage('Remove Application') {
-
             when {
-                expression {
-                    params.ACTION == 'REMOVE_APP'
-                }
+                expression { params.ACTION == 'REMOVE_APP' }
             }
-
             steps {
-
                 sh '''
-                kubectl delete -f app-service.yml --ignore-not-found
-                kubectl delete -f app-deployment.yml --ignore-not-found
+                kubectl delete deployment webapp -n prod --ignore-not-found
+                kubectl delete service webapp-service -n prod --ignore-not-found
                 '''
-
             }
-
         }
 
         stage('Remove Database') {
-
             when {
-                expression {
-                    params.ACTION == 'REMOVE_DB'
-                }
+                expression { params.ACTION == 'REMOVE_DB' }
             }
-
             steps {
-
                 sh '''
-                kubectl delete -f db-statefulset.yml --ignore-not-found
-                kubectl delete -f db-service.yml --ignore-not-found
+                kubectl delete statefulset mysql -n prod --ignore-not-found
+                kubectl delete service mysql-service -n prod --ignore-not-found
                 '''
-
             }
-
         }
-
     }
 
+    post {
+        success {
+            echo "Pipeline completed successfully."
+        }
+
+        failure {
+            echo "Pipeline failed."
+        }
+
+        always {
+            cleanWs()
+        }
+    }
 }
