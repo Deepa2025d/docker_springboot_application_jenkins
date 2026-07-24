@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id-')
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-cred-id')   // make sure this ID matches Jenkins credentials
         IMAGE_NAME = "deepaselvakumar/springboot-app"
     }
 
@@ -24,10 +24,11 @@ pipeline {
             }
         }
 
-        stage('Deploy to Hardware') {
+        stage('Deploy to Server') {
             steps {
-                echo 'Deploying Docker image to hardware environment...'
-                sh "ssh user@hardware 'docker pull $IMAGE_NAME:${BUILD_NUMBER} && docker run -d -p 8080:8080 $IMAGE_NAME:${BUILD_NUMBER}'"
+                echo 'Deploying Docker image to target server...'
+                // Replace <server-ip> and <ssh-user> with your actual values
+                sh "ssh ubuntu@<server-ip> 'docker pull $IMAGE_NAME:${BUILD_NUMBER} && docker run -d -p 8080:8080 $IMAGE_NAME:${BUILD_NUMBER}'"
             }
         }
     }
