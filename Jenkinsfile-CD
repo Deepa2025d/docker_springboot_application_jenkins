@@ -1,32 +1,112 @@
-stage('Deploy Application') {
-    when {
-        expression {
-            params.ACTION == 'DEPLOY_APP'
-        }
-    }
-    steps {
-        withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
-            sh '''
-                kubectl apply -f k8s/app.yml
-                kubectl get all -n prod
-            '''
-        }
-    }
-}
+pipeline {
 
-stage('Deploy Database') {
-    when {
-        expression {
-            params.ACTION == 'DEPLOY_DB'
+    agent any
+
+    parameters {
+        choice(
+            name: 'ACTION',
+            choices: [
+                'DEPLOY_APP',
+                'DEPLOY_DB',
+                'REMOVE_APP',
+                'REMOVE_DB'
+            ],
+            description: 'Select Kubernetes Operation'
+        )
+    }
+
+    stages {
+
+        stage('Check Kubernetes') {
+            steps {
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl get nodes
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Application') {
+            when {
+                expression {
+                    params.ACTION == 'DEPLOY_APP'
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl apply -f k8s/app.yml
+                        kubectl get all -n prod
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy Database') {
+            when {
+                expression {
+                    params.ACTION == 'DEPLOY_DB'
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl apply -f k8s/deploy.yml
+                        kubectl get statefulset -n prod
+                        kubectl get svc -n prod
+                    '''
+                }
+            }
+        }
+
+        stage('Remove Application') {
+            when {
+                expression {
+                    params.ACTION == 'REMOVE_APP'
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl delete deployment webapp -n prod --ignore-not-found
+                        kubectl delete service webapp-service -n prod --ignore-not-found
+                    '''
+                }
+            }
+        }
+
+        stage('Remove Database') {
+            when {
+                expression {
+                    params.ACTION == 'REMOVE_DB'
+                }
+            }
+            steps {
+                withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                    sh '''
+                        kubectl delete statefulset mysql -n prod --ignore-not-found
+                        kubectl delete service mysql-service -n prod --ignore-not-found
+                    '''
+                }
+            }
         }
     }
-    steps {
-        withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
-            sh '''
-                kubectl apply -f k8s/deploy.yml
-                kubectl get statefulset -n prod
-                kubectl get svc -n prod
-            '''
+
+    post {
+        always {
+            withCredentials([file(credentialsId: 'k8s-kubeconfig', variable: 'KUBECONFIG')]) {
+                sh 'kubectl get all -n prod || true'
+            }
+            cleanWs()
+        }
+
+        success {
+            echo 'Deployment completed successfully.'
+        }
+
+        failure {
+            echo 'Pipeline execution failed.'
         }
     }
 }
